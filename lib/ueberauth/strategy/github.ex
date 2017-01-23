@@ -87,13 +87,22 @@ defmodule Ueberauth.Strategy.Github do
   """
   def handle_request!(conn) do
     scopes = conn.params["scope"] || option(conn, :default_scope)
-    opts = [redirect_uri: callback_url(conn), scope: scopes]
+    params = [redirect_uri: callback_url(conn), scope: scopes]
 
-    opts =
-      if conn.params["state"], do: Keyword.put(opts, :state, conn.params["state"]), else: opts
+    params =
+      if conn.params["state"], do: Keyword.put(params, :state, conn.params["state"]), else: params
+
+    opts = [  
+      redirect_uri: option(conn, :redirect_uri), 
+      client_id: option(conn, :client_id), 
+      client_secret: option(conn, :client_secret),
+      site: option(conn, :site),
+      token_url: option(conn, :token_url),
+      authorize_url: option(conn, :authorize_url)
+    ]
 
     module = option(conn, :oauth2_module)
-    redirect!(conn, apply(module, :authorize_url!, [opts]))
+    redirect!(conn, apply(module, :authorize_url!, [params, opts]))
   end
 
   @doc """
