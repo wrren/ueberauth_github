@@ -1,6 +1,8 @@
 # Überauth GitHub
 
-> GitHub OAuth2 strategy for Überauth.
+> GitHub OAuth2 strategy for Überauth. Modified from [Überauth GitHub](https://github.com/ueberauth/ueberauth_github) to allow for 
+multiple github installations to be set up simultaneously by reading URI information from the provider options rather than the 
+singleton Ueberauth.Github.OAuth configuration key.
 
 ## Installation
 
@@ -27,7 +29,15 @@
     ```elixir
     config :ueberauth, Ueberauth,
       providers: [
-        github: {Ueberauth.Strategy.Github, []}
+        github: {Ueberauth.Strategy.Github, [
+          site: "https://api.github.com", 
+          authorize_url: "https://github.com/login/oauth/authorize",
+          redirect_uri: "http://example.com/auth/github/callback",
+          token_url: "https://github.com/login/oauth/access_token",
+          client_id: System.get_env("GITHUB_CLIENT_ID"),
+          client_secret: System.get_env("GITHUB_CLIENT_SECRET"),
+          default_scope: "user,repo,admin:repo_hook"
+        ]}
       ]
     ```
 
