@@ -43,7 +43,7 @@ defmodule Ueberauth.Strategy.Github.OAuth do
   end
 
   def get(token, url, headers \\ [], opts \\ []) do
-    client([token: token])
+    client(Keyword.merge([token: token], opts))
     |> put_param("client_secret", client.client_secret)
     |> OAuth2.Client.get(url, headers, opts)
   end

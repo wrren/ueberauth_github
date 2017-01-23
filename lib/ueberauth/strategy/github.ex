@@ -76,6 +76,8 @@ defmodule Ueberauth.Strategy.Github do
   alias Ueberauth.Auth.Credentials
   alias Ueberauth.Auth.Extra
 
+  require Logger
+
   @doc """
   Handles the initial redirect to the github authentication page.
 
@@ -92,15 +94,7 @@ defmodule Ueberauth.Strategy.Github do
     params =
       if conn.params["state"], do: Keyword.put(params, :state, conn.params["state"]), else: params
 
-    opts = [  
-      redirect_uri: option(conn, :redirect_uri), 
-      client_id: option(conn, :client_id), 
-      client_secret: option(conn, :client_secret),
-      site: option(conn, :site),
-      token_url: option(conn, :token_url),
-      authorize_url: option(conn, :authorize_url)
-    ]
-
+    opts = client_options(conn)
     module = option(conn, :oauth2_module)
     redirect!(conn, apply(module, :authorize_url!, [params, opts]))
   end
@@ -110,8 +104,9 @@ defmodule Ueberauth.Strategy.Github do
   `ueberauth_failure` struct. Otherwise the information returned from Github is returned in the `Ueberauth.Auth` struct.
   """
   def handle_callback!(%Plug.Conn{ params: %{ "code" => code } } = conn) do
+    opts = [options: [client_options: client_options(conn)]]
     module = option(conn, :oauth2_module)
-    token = apply(module, :get_token!, [[code: code]])
+    token = apply(module, :get_token!, [[code: code], opts])
 
     if token.access_token == nil do
       set_errors!(conn, [error(token.other_params["error"], token.other_params["error_description"])])
@@ -203,11 +198,11 @@ defmodule Ueberauth.Strategy.Github do
   defp fetch_user(conn, token) do
     conn = put_private(conn, :github_token, token)
     # Will be better with Elixir 1.3 with/else
-    case Ueberauth.Strategy.Github.OAuth.get(token, "/user") do
+    case Ueberauth.Strategy.Github.OAuth.get(token, "/user", [], client_options(conn)) do
       { :ok, %OAuth2.Response{status_code: 401, body: _body}} ->
         set_errors!(conn, [error("token", "unauthorized")])
       { :ok, %OAuth2.Response{status_code: status_code, body: user} } when status_code in 200..399 ->
-        case Ueberauth.Strategy.Github.OAuth.get(token, "/user/emails") do
+        case Ueberauth.Strategy.Github.OAuth.get(token, "/user/emails", [], client_options(conn)) do
           { :ok, %OAuth2.Response{status_code: status_code, body: emails} } when status_code in 200..399 ->
             user = Map.put user, "emails", emails
             put_private(conn, :github_user, user)
@@ -217,6 +212,15 @@ defmodule Ueberauth.Strategy.Github do
       { :error, %OAuth2.Error{reason: reason} } ->
         set_errors!(conn, [error("OAuth2", reason)])
     end
+  end
+
+  defp client_options(conn) do
+    [ redirect_uri: option(conn, :redirect_uri), 
+      client_id: option(conn, :client_id), 
+      client_secret: option(conn, :client_secret),
+      site: option(conn, :site),
+      token_url: option(conn, :token_url),
+      authorize_url: option(conn, :authorize_url) ]
   end
 
   defp option(conn, key) do
